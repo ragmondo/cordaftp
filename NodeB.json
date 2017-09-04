@@ -1,0 +1,24 @@
+{
+  "defaults": {
+    "environment": "dev"
+  },
+  "txMap": {
+    "outgoing_1_to_Node_A": {
+      "searchDirectory": "/Users/richardgreen/example_send/blerg",
+      "searchPattern": ".*\\.txt",
+      "logDirectory": "/Users/richardgreen/example_send/log",
+      "destinationParty": "NodeA",
+      "myReference": "my_reference",
+      "theirReference": "NodeA1"
+    },
+    "outgoing_2_to_Node_A": {
+      "searchDirectory": "/Users/richardgreen/example_send/blah",
+      "searchPattern": ".*\\.txt",
+      "logDirectory": "/Users/richardgreen/example_send/log",
+      "destinationParty": "NodeA",
+      "myReference": "my_reference",
+      "theirReference": "NodeA2"
+    }
+  },
+  "rxMap": { }
+}
