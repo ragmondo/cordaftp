@@ -3,13 +3,30 @@ package net.corda.cordaftp
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
 import java.io.FileInputStream
+import java.nio.file.Paths
+
+enum class PostSendAction() {
+    NOP {
+        override fun doAction(vararg stuff: Any) = Unit
+
+    },
+    DELETE {
+        override fun doAction(vararg stuff: Any) {
+            val path = stuff.single() as String
+            println("Removing $path")
+            Paths.get(path).toFile().delete()
+        }
+    };
+    abstract fun doAction(vararg stuff: Any)  : Unit
+}
 
 data class TxConfiguration(val searchDirectory: String,
                            val searchPattern: String,
                            val logDirectory: String,
                            val destinationParty: String,
                            val myReference: String,
-                           val theirReference: String) // TODO - change strings to paths etc.
+                           val theirReference: String,
+                           val postSendAction: PostSendAction = PostSendAction.NOP) // TODO - change strings to paths etc.
 
 data class RxConfiguration(val myReference: String,
                            val destinationDirectory: String,

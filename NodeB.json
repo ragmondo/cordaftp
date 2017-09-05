@@ -9,7 +9,8 @@
       "logDirectory": "/Users/richardgreen/example_send/log",
       "destinationParty": "NodeA",
       "myReference": "my_reference",
-      "theirReference": "NodeA1"
+      "theirReference": "NodeA1",
+      "postSendAction": "DELETE"
     },
     "outgoing_2_to_Node_A": {
       "searchDirectory": "/Users/richardgreen/example_send/blah",
