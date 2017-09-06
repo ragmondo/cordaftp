@@ -54,7 +54,7 @@ fun transferFilesForever(config: Configuration, proxy: CordaRPCOps) {
             if( pattern.containsMatchIn(filename) ) {
                 println("Filename $filename matches pattern $pattern")
                 val fullFileName = Paths.get(config.searchDirectory, File.separator, filename)
-                startFlow(proxy, config.destinationParty, config.theirReference, config.myReference, fullFileName, config.logDirectory)
+                startFlow(proxy, config.destinationParty, config.theirReference, config.myReference, fullFileName, config.logDirectory, config.postSendAction)
             }
             else {
                 println("No match - no further action")
@@ -65,7 +65,7 @@ fun transferFilesForever(config: Configuration, proxy: CordaRPCOps) {
     }
 }
 
-fun startFlow(proxy: CordaRPCOps, destinationParty: String, theirReference: String, myReference: String, fullFileName: Path, logDirectory: String) {
+fun startFlow(proxy: CordaRPCOps, destinationParty: String, theirReference: String, myReference: String, fullFileName: Path, logDirectory: String, postSendAction: PostSendAction) {
     println("Start transfer Flow with :")
     println(" destination: ${destinationParty}")
     println(" their reference: ${theirReference}")
@@ -90,7 +90,7 @@ fun startFlow(proxy: CordaRPCOps, destinationParty: String, theirReference: Stri
 
     try {
         val flowHandle = proxy
-                .startTrackedFlowDynamic(TxFileInitiator::class.java, otherParty, theirReference, myReference, fullFileName.toString(), attachmentHash)
+                .startTrackedFlowDynamic(TxFileInitiator::class.java, otherParty, theirReference, myReference, fullFileName.toString(), attachmentHash, postSendAction)
 
         flowHandle.progress.subscribe({
             evt -> System.out.printf(">> %s\n", evt)

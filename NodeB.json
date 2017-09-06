@@ -5,7 +5,7 @@
   "txMap": {
     "outgoing_1_to_Node_A": {
       "searchDirectory": "/Users/richardgreen/example_send/blerg",
-      "searchPattern": ".*\\.txt",
+      "searchPattern": ".*\\.txt|.*\\.doc",
       "logDirectory": "/Users/richardgreen/example_send/log",
       "destinationParty": "NodeA",
       "myReference": "my_reference",

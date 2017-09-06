@@ -53,11 +53,12 @@ data class FileTransferManifestState(val sender: Party, val recipient: Party, va
  */
 @InitiatingFlow
 @StartableByRPC
-class TxFileInitiator(val destinationParty: Party, val theirReference: String, val myReference: String, val filename: String, val attachment: SecureHash) : FlowLogic<Unit>() {
+class TxFileInitiator(val destinationParty: Party, val theirReference: String, val myReference: String, val filename: String, val attachment: SecureHash, val postSendAction: PostSendAction) : FlowLogic<Unit>() {
 
     companion object {
         object GENERATING : ProgressTracker.Step("Generating")
         object SENDING : ProgressTracker.Step("Sending")
+        object POSTSEND : ProgressTracker.Step("Post send actions")
     }
 
     override val progressTracker = ProgressTracker(GENERATING, SENDING)
@@ -73,7 +74,9 @@ class TxFileInitiator(val destinationParty: Party, val theirReference: String, v
         ptx.addOutputState(outState)
         val stx = serviceHub.signInitialTransaction(ptx)
         progressTracker.currentStep = SENDING
-        send(destinationParty, stx)
+        sendAndReceive<Any>(destinationParty, stx)
+        postSendAction.doAction(filename)
+        //progressTracker.currentStep = POSTSEND
     }
 }
 
@@ -116,28 +119,31 @@ class RxFileResponder(val otherParty: Party) : FlowLogic<Unit>() {
 
      //   progressTracker.currentStep = UNPACKING
 
-        var jis = attach.openAsJAR()
+        run {
+            var jis = attach.openAsJAR()
 
-        try {
-            while (true) {
-                var nje = jis.nextEntry ?: break
-                if (nje.isDirectory) {
-                    continue
+            try {
+                while (true) {
+                    var nje = jis.nextEntry ?: break
+                    if (nje.isDirectory) {
+                        continue
+                    }
+                    val dest = determineDestination(configuration, nje.name, state) ?: continue
+                    logger.info("Name is ${nje.name} and path is $dest")
+                    val fos = FileOutputStream(dest.toFile())
+                    try {
+                        jis.copyTo(fos)
+                    } finally {
+                        fos.close()
+                    }
                 }
-                val dest = determineDestination(configuration, nje.name, state) ?: continue
-                logger.info("Name is ${nje.name} and path is $dest")
-                val fos = FileOutputStream(dest.toFile())
-                try {
-                    jis.copyTo(fos)
-                }
-                finally {
-                    fos.close()
-                }
+            } finally {
+                //  jis.close()
+                // TODO: Find out why closing the stream causes an exception
             }
+
         }
-        finally {
-            jis.close()
-        }
+        send(otherParty, Unit)
     }
 }
 

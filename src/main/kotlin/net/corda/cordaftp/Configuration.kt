@@ -2,6 +2,7 @@ package net.corda.cordaftp
 
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
+import net.corda.core.utilities.loggerFor
 import java.io.FileInputStream
 import java.nio.file.Paths
 
@@ -12,8 +13,9 @@ enum class PostSendAction() {
     },
     DELETE {
         override fun doAction(vararg stuff: Any) {
+            val log = loggerFor<Configuration>()
             val path = stuff.single() as String
-            println("Removing $path")
+            log.info("$this - Removing $path")
             Paths.get(path).toFile().delete()
         }
     };
