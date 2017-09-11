@@ -1,12 +1,12 @@
 package net.corda.cordaftp
 
-import com.google.common.util.concurrent.Futures
 import net.corda.core.crypto.X509Utilities.getX509Name
-import net.corda.core.getOrThrow
 import net.corda.core.node.services.ServiceInfo
 import net.corda.node.services.transactions.ValidatingNotaryService
 import net.corda.nodeapi.User
 import net.corda.testing.driver.driver
+import java.nio.file.Files
+import java.nio.file.Paths
 
 /**
  * This file is exclusively for being able to run your nodes through an IDE (as opposed to running deployNodes)
@@ -27,13 +27,20 @@ fun main(args: Array<String>) {
     driver(isDebug = true) {
         startNode(getX509Name("Controller", "London", "root@city.uk.example"), setOf(ServiceInfo(ValidatingNotaryService.type)))
 
+        val nodeNames = listOf(
+                getX509Name("NodeA", "Paris", "root@city.fr.example"),
+                getX509Name("NodeB", "Rome", "root@city.it.example"),
+                getX509Name("NodeC", "New York", "root@city.us.example"))
 
-
-
-        val (nodeA, nodeB, nodeC) = Futures.allAsList(
-                startNode(getX509Name("NodeA", "Paris", "root@city.fr.example"), rpcUsers = listOf(user)),
-                startNode(getX509Name("NodeB", "Rome", "root@city.it.example"), rpcUsers = listOf(user)),
-                startNode(getX509Name("NodeC", "New York", "root@city.us.example"), rpcUsers = listOf(user))).getOrThrow()
+        for (name in nodeNames) {
+            // Copy the app config files in the project root directory to the relevant node base directories
+            val nodeDir = Files.createDirectories(baseDirectory(name))
+            val appConfigFile = Paths.get("${nodeDir.fileName}.json")
+            if (Files.exists(appConfigFile)) {
+                Files.copy(appConfigFile, nodeDir.resolve("cordaftp.json"))
+            }
+            startNode(name, rpcUsers = listOf(user))
+        }
 
         waitForAllNodesToFinish()
     }
