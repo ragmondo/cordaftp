@@ -10,6 +10,7 @@ import java.nio.file.*
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
 
+val ARBITRARY_MAX_FILE_SIZE = 5_000_000
 
 fun main(args: Array<String>) {
     var proxy = loginToCordaNode(args)
@@ -53,8 +54,16 @@ fun transferFilesForever(config: Configuration, proxy: CordaRPCOps) {
             val filename = e.context().toString()
             if( pattern.containsMatchIn(filename) ) {
                 println("Filename $filename matches pattern $pattern")
+
                 val fullFileName = Paths.get(config.searchDirectory, File.separator, filename)
-                startFlow(proxy, config.destinationParty, config.theirReference, config.myReference, fullFileName, config.logDirectory, config.postSendAction)
+
+                if (fullFileName.toFile().length() > ARBITRARY_MAX_FILE_SIZE) {
+                    println("Filesize ${fullFileName.toFile().length()} exceeds $ARBITRARY_MAX_FILE_SIZE. Ignoring")
+                }
+                else {
+
+                    startFlow(proxy, config.destinationParty, config.theirReference, config.myReference, fullFileName, config.logDirectory, config.postSendAction)
+                }
             }
             else {
                 println("No match - no further action")
