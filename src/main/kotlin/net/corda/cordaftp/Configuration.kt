@@ -3,23 +3,21 @@ package net.corda.cordaftp
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
 import net.corda.core.utilities.loggerFor
-import java.io.FileInputStream
+import java.io.InputStream
+import java.nio.file.Files
 import java.nio.file.Paths
 
-enum class PostSendAction() {
-    NOP {
-        override fun doAction(vararg stuff: Any) = Unit
-
-    },
+enum class PostSendAction {
     DELETE {
-        override fun doAction(vararg stuff: Any) {
+        override fun doAction(file: String) {
             val log = loggerFor<Configuration>()
-            val path = stuff.single() as String
+            val path = Paths.get(file)
             log.info("$this - Removing $path")
-            Paths.get(path).toFile().delete()
+            Files.delete(path)
         }
     };
-    abstract fun doAction(vararg stuff: Any)  : Unit
+    //TODO Pass in TxConfiguration or a similar class
+    abstract fun doAction(file: String)
 }
 
 data class TxConfiguration(val searchDirectory: String,
@@ -28,30 +26,26 @@ data class TxConfiguration(val searchDirectory: String,
                            val destinationParty: String,
                            val myReference: String,
                            val theirReference: String,
-                           val postSendAction: PostSendAction = PostSendAction.NOP) // TODO - change strings to paths etc.
+                           val postSendAction: PostSendAction? = null) // TODO - change strings to paths etc.
 
 data class RxConfiguration(val myReference: String,
                            val destinationDirectory: String,
                            val logDirectory: String)
 
-data class Configuration(
-        var defaults: MutableMap<String, String> = mutableMapOf<String, String>(),
-        var txMap: MutableMap<String, TxConfiguration> = mutableMapOf<String, TxConfiguration>(),
-        var rxMap: MutableMap<String, RxConfiguration> = mutableMapOf<String, RxConfiguration>()
-)
+data class Configuration(val defaults: Map<String, String> = mapOf(),
+                         val txMap: Map<String, TxConfiguration> = mapOf(),
+                         val rxMap: Map<String, RxConfiguration> = mapOf())
 
 interface ConfigurationReader {
-    fun readConfiguration(configSource: String): Configuration
+    fun readConfiguration(input: InputStream): Configuration
 }
 
-class FileConfigurationReader() : ConfigurationReader {
-    override fun readConfiguration(configSource: String) =
-            jacksonObjectMapper().readValue<Configuration>(FileInputStream(configSource))
+class FileConfigurationReader : ConfigurationReader {
+    override fun readConfiguration(input: InputStream): Configuration = jacksonObjectMapper().readValue(input)
 }
 
-class FakeConfigurationReader() : ConfigurationReader {
-    override fun readConfiguration(configSource: String): Configuration {
-
+class FakeConfigurationReader : ConfigurationReader {
+    override fun readConfiguration(input: InputStream): Configuration {
         val dc1 = TxConfiguration("/Users/richardgreen/example_send/blerg", ".*\\.txt", "/Users/richardgreen/example_send/log", "NodeA", "my_reference", "other_nodes_reference_1")
         val dc2 = TxConfiguration("/Users/richardgreen/example_send/blah", ".*\\.txt", "/Users/richardgreen/example_send/log", "NodeA", "my_reference", "other_nodes_reference_2")
 

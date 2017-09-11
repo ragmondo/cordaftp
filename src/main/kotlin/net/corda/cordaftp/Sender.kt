@@ -2,10 +2,10 @@ package net.corda.cordaftp
 
 import net.corda.client.rpc.CordaRPCClient
 import net.corda.core.crypto.commonName
-import net.corda.core.internal.readAll
 import net.corda.core.messaging.CordaRPCOps
 import net.corda.core.utilities.parseNetworkHostAndPort
 import java.io.File
+import java.io.FileInputStream
 import java.nio.file.*
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
@@ -13,56 +13,51 @@ import java.util.zip.ZipOutputStream
 val ARBITRARY_MAX_FILE_SIZE = 5_000_000
 
 fun main(args: Array<String>) {
-    var proxy = loginToCordaNode(args)
+    val proxy = loginToCordaNode(args)
     val configName = "${proxy.nodeIdentity().legalIdentity.name.commonName}.json"
-    val config = FileConfigurationReader().readConfiguration(configName)
+    val config = FileConfigurationReader().readConfiguration(FileInputStream(configName))
     transferFilesForever(config, proxy)
 }
 
 fun loginToCordaNode(args: Array<String>): CordaRPCOps {
     val nodeAddress = args[0].parseNetworkHostAndPort()
     val client = CordaRPCClient(nodeAddress)
-    val proxy = client.start("user1", "test").proxy
-    return proxy
+    return client.start("user1", "test").proxy
 }
 
 fun transferFilesForever(config: Configuration, proxy: CordaRPCOps) {
-
-    var keysConfigMap = mutableMapOf<WatchKey, Pair<String, TxConfiguration>>()
+    val keysConfigMap = mutableMapOf<WatchKey, Pair<String, TxConfiguration>>()
     val watcher = FileSystems.getDefault().newWatchService()
-    for(dc in config.txMap) {
-        println("Configuration: ${dc.key}")
-        println(dc.value.toString().replace(",","\n\t\t"))
+    for((key, value) in config.txMap) {
+        println("Configuration: $key")
+        println(value.toString().replace(",","\n\t\t"))
         println()
-        var p = Paths.get(dc.value.searchDirectory)!!
-        val watchkey = p.register(watcher, StandardWatchEventKinds.ENTRY_CREATE)
-        keysConfigMap.put(watchkey, Pair(dc.key, dc.value))
+        val searchDir = Paths.get(value.searchDirectory)
+        Files.createDirectories(searchDir)
+        val watchkey = searchDir.register(watcher, StandardWatchEventKinds.ENTRY_CREATE)
+        keysConfigMap[watchkey] = Pair(key, value)
     }
 
-    while(true) {
+    while (true) {
         println("In main loop and watching...")
         val key = watcher.take()
-        var configPair = keysConfigMap.get(key)!!
-        val configName = configPair.first
-        val config = configPair.second
+        val (configName, config) = keysConfigMap[key]!!
         val pattern =  config.searchPattern.toRegex()
 
-        println("Potentially found something on Configuration: ${configName} - ${config.searchDirectory} for ${config.searchPattern} ")
+        println("Potentially found something on Configuration: $configName - ${config.searchDirectory} for ${config.searchPattern} ")
 
         val events = key.pollEvents()
         for (e in events) {
             val filename = e.context().toString()
-            if( pattern.containsMatchIn(filename) ) {
+            if (pattern.containsMatchIn(filename)) {
                 println("Filename $filename matches pattern $pattern")
 
-                val fullFileName = Paths.get(config.searchDirectory, File.separator, filename)
-
-                if (fullFileName.toFile().length() > ARBITRARY_MAX_FILE_SIZE) {
-                    println("Filesize ${fullFileName.toFile().length()} exceeds $ARBITRARY_MAX_FILE_SIZE. Ignoring")
+                val file = Paths.get(config.searchDirectory, filename).toAbsolutePath()
+                if (Files.size(file) > ARBITRARY_MAX_FILE_SIZE) {
+                    println("Filesize ${Files.size(file)} exceeds $ARBITRARY_MAX_FILE_SIZE. Ignoring")
                 }
                 else {
-
-                    startFlow(proxy, config.destinationParty, config.theirReference, config.myReference, fullFileName, config.logDirectory, config.postSendAction)
+                    startFlow(proxy, config, file)
                 }
             }
             else {
@@ -74,43 +69,48 @@ fun transferFilesForever(config: Configuration, proxy: CordaRPCOps) {
     }
 }
 
-fun startFlow(proxy: CordaRPCOps, destinationParty: String, theirReference: String, myReference: String, fullFileName: Path, logDirectory: String, postSendAction: PostSendAction) {
+fun startFlow(proxy: CordaRPCOps, config: TxConfiguration, file: Path) {
     println("Start transfer Flow with :")
-    println(" destination: ${destinationParty}")
-    println(" their reference: ${theirReference}")
-    println(" my reference: ${myReference}")
-    println(" filename: $fullFileName")
-    println(" log directory: ${logDirectory}")
+    println(" destination: ${config.destinationParty}")
+    println(" their reference: ${config.theirReference}")
+    println(" my reference: ${config.myReference}")
+    println(" filename: $file")
+    println(" log directory: ${config.logDirectory}")
 
     // TODO: Make this use pipedinput / output
-    var fo = File.createTempFile("/tmp",".corda.zip")
+    val fo = File.createTempFile("/tmp",".corda.zip")
     println(" --> tmp file is $fo")
 
-    var jos = ZipOutputStream(fo.outputStream())
-    val je = ZipEntry(fullFileName.fileName.toString())
-    jos.putNextEntry(je)
-    jos.write(fullFileName.readAll())
-    jos.close()
+    ZipOutputStream(fo.outputStream()).use { zos ->
+        zos.putNextEntry(ZipEntry(file.fileName.toString()))
+        Files.newInputStream(file).use {
+            it.copyTo(zos)
+        }
+    }
 
     val attachmentHash = proxy.uploadAttachment(fo.inputStream())
-    val otherParty = proxy.partiesFromName(destinationParty, false).first()
+    val otherParty = proxy.partiesFromName(config.destinationParty, false).first()
 
     println("--> Destination party confirmed as $otherParty")
 
     try {
-        val flowHandle = proxy
-                .startTrackedFlowDynamic(TxFileInitiator::class.java, otherParty, theirReference, myReference, fullFileName.toString(), attachmentHash, postSendAction)
+        val flowHandle = proxy.startTrackedFlowDynamic(
+                TxFileInitiator::class.java,
+                otherParty,
+                config.theirReference,
+                config.myReference,
+                file.toString(),
+                attachmentHash,
+                config.postSendAction)
 
-        flowHandle.progress.subscribe({
-            evt -> System.out.printf(">> %s\n", evt)
-        })
+        flowHandle.progress.subscribe { evt ->
+            System.out.printf(">> %s\n", evt)
+        }
 
         // The line below blocks and waits for the flow to return.
-        val result = flowHandle
-                .returnValue
-                .get()
+        flowHandle.returnValue.get()
     } catch (ex: Throwable) {
-        println(ex)
+        ex.printStackTrace()
         /* It's not a real system - bail out on error */
         TODO("error handling for $ex")
     }

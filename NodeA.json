@@ -6,13 +6,13 @@
   "rxMap": {
     "incoming_1": {
       "myReference": "NodeA1",
-      "destinationDirectory": "/Users/richardgreen/incoming_1",
-      "logDirectory": "/Users/richardgreen/log"
+      "destinationDirectory": "incoming_1",
+      "logDirectory": "log"
     },
     "incoming_2": {
       "myReference": "NodeA2",
-      "destinationDirectory": "/Users/richardgreen/incoming_2",
-      "logDirectory": "/Users/richardgreen/log"
+      "destinationDirectory": "incoming_2",
+      "logDirectory": "log"
     }
   }
 }

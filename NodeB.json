@@ -4,18 +4,18 @@
   },
   "txMap": {
     "outgoing_1_to_Node_A": {
-      "searchDirectory": "/Users/richardgreen/example_send/blerg",
+      "searchDirectory": "build/send1",
       "searchPattern": ".*\\.txt|.*\\.doc",
-      "logDirectory": "/Users/richardgreen/example_send/log",
+      "logDirectory": "build/log",
       "destinationParty": "NodeA",
       "myReference": "my_reference",
       "theirReference": "NodeA1",
       "postSendAction": "DELETE"
     },
     "outgoing_2_to_Node_A": {
-      "searchDirectory": "/Users/richardgreen/example_send/blah",
+      "searchDirectory": "build/send2",
       "searchPattern": ".*\\.txt",
-      "logDirectory": "/Users/richardgreen/example_send/log",
+      "logDirectory": "build/log",
       "destinationParty": "NodeA",
       "myReference": "my_reference",
       "theirReference": "NodeA2"

@@ -36,6 +36,7 @@ lib/dokka.jar
 .idea/dictionaries
 
 # Sensitive or high-churn files:
+.idea/inspectionProfiles
 .idea/dataSources.ids
 .idea/dataSources.xml
 .idea/sqlDataSources.xml
