@@ -95,6 +95,10 @@ open class GoogleCordaAnalytics(val tracking: String, val debug: Boolean = false
 
         m.map { request = request.query(it.key, it.value) }
 
+        overrides.map {
+            request.query(it.key, it.value)
+        }
+
         val client = ApacheClient()
 
         thread(start = true) {

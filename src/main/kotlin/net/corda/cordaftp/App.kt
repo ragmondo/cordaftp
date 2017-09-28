@@ -100,7 +100,6 @@ class TxFileInitiator(private val destinationParty: Party,
 
         progressTracker.currentStep = POSTSEND_ACTIONS
         postSendAction?.doAction(file)
-
     }
 }
 
