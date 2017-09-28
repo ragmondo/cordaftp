@@ -1,5 +1,6 @@
 package net.corda.cordaftp
 
+import net.corda.analytics.GoogleCordaAnalytics
 import net.corda.client.rpc.CordaRPCClient
 import net.corda.core.messaging.CordaRPCOps
 import net.corda.core.utilities.NetworkHostAndPort
@@ -42,6 +43,9 @@ fun transferFilesForever(config: Configuration, proxy: CordaRPCOps) {
         val watchkey = searchDir.register(watcher, StandardWatchEventKinds.ENTRY_CREATE)
         keysConfigMap[watchkey] = Pair(key, value)
     }
+
+    val analytics = GoogleCordaAnalytics("UA-106986514-1")
+
 
     while (true) {
         println("In main loop and watching...")

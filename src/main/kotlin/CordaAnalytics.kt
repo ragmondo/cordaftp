@@ -139,7 +139,6 @@ fun main(args: Array<String>) {
     Thread.sleep(2000)
 
     gca.nodeStop("my node")
-
 }
 
 
