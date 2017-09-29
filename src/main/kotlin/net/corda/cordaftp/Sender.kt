@@ -1,9 +1,8 @@
 package net.corda.cordaftp
 
 import net.corda.client.rpc.CordaRPCClient
-import net.corda.core.crypto.commonName
 import net.corda.core.messaging.CordaRPCOps
-import net.corda.core.utilities.parseNetworkHostAndPort
+import net.corda.core.utilities.NetworkHostAndPort
 import java.io.File
 import java.io.FileInputStream
 import java.nio.file.*
@@ -14,13 +13,13 @@ val ARBITRARY_MAX_FILE_SIZE = 5_000_000
 
 fun main(args: Array<String>) {
     val proxy = loginToCordaNode(args)
-    val configName = "${proxy.nodeIdentity().legalIdentity.name.commonName}.json"
+    val configName = "${proxy.nodeInfo().legalIdentities.first().name.commonName}.json"
     val config = FileConfigurationReader().readConfiguration(FileInputStream(configName))
     transferFilesForever(config, proxy)
 }
 
 fun loginToCordaNode(args: Array<String>): CordaRPCOps {
-    val nodeAddress = args[0].parseNetworkHostAndPort()
+    val nodeAddress = NetworkHostAndPort.parse(args[0])
     val client = CordaRPCClient(nodeAddress)
     return client.start("user1", "test").proxy
 }
