@@ -1,21 +1,21 @@
 package net.corda.cordaftp
 
+
 import co.paralleluniverse.fibers.Suspendable
-import net.corda.core.contracts.Contract
-import net.corda.core.contracts.ContractState
-import net.corda.core.contracts.TransactionType
-import net.corda.core.contracts.requireThat
+import net.corda.core.contracts.*
 import net.corda.core.crypto.SecureHash
 import net.corda.core.flows.*
 import net.corda.core.identity.AbstractParty
 import net.corda.core.identity.Party
+import net.corda.core.internal.ResolveTransactionsFlow
 import net.corda.core.node.CordaPluginRegistry
-import net.corda.core.node.PluginServiceHub
+import net.corda.core.node.ServiceHub
 import net.corda.core.node.services.CordaService
 import net.corda.core.serialization.SerializationCustomization
 import net.corda.core.serialization.SingletonSerializeAsToken
 import net.corda.core.transactions.LedgerTransaction
 import net.corda.core.transactions.SignedTransaction
+import net.corda.core.transactions.TransactionBuilder
 import net.corda.core.utilities.ProgressTracker
 import net.corda.core.utilities.unwrap
 import java.nio.file.Files
@@ -25,10 +25,8 @@ import java.nio.file.Paths
 /**
  * We don't really have a complicated verify with this simple cordapp - it just receives files
  */
+@LegalProseReference(uri="/some/uri/docs.txt")
 class FileTransferContract : Contract {
-    override val legalContractReference: SecureHash
-        get() = SecureHash.zeroHash
-
     override fun verify(tx: LedgerTransaction) {
         requireThat {
             "No input states" using (tx.inputStates.isEmpty())
@@ -48,7 +46,6 @@ data class FileTransferManifestState(val sender: Party,
                                      val senderReference: String,
                                      val recipientReference: String) : ContractState {
     override val participants: List<AbstractParty> get() = listOf(sender, recipient)
-    override val contract: FileTransferContract get() = FileTransferContract()
 }
 
 /**
@@ -73,25 +70,29 @@ class TxFileInitiator(private val destinationParty: Party,
 
     @Suspendable
     override fun call() {
+        val notary = serviceHub.networkMapCache.notaryIdentities.first()
         progressTracker.currentStep = ProgressTracker.UNSTARTED
-        val ptx = TransactionType.General.Builder(notary = serviceHub.networkMapCache.getAnyNotary())
+        val ptx = TransactionBuilder(notary = notary)
+        //val ptx = TransactionType.General.Builder(notary = serviceHub.networkMapCache.getAnyNotary())
         progressTracker.currentStep = GENERATING
         ptx.addAttachment(attachment)
-        val me = this.serviceHub.myInfo.legalIdentity
+        val me = this.serviceHub.myInfo.legalIdentities.first()
         val outState = FileTransferManifestState(me, destinationParty, file, myReference, theirReference)
-        ptx.addOutputState(outState)
+        ptx.addOutputState(TransactionState(outState, "FileTransferContract", notary))
         val stx = serviceHub.signInitialTransaction(ptx)
         progressTracker.currentStep = SENDING
-        send(destinationParty, stx)
+        val flowSession = initiateFlow(destinationParty)
+        flowSession.send(stx)
         postSendAction?.doAction(file)
         //progressTracker.currentStep = POSTSEND
+
     }
 }
 
 // The platform currently doesn't provide CorDapps a way to access their own config, so we use the CordaService concept
 // to read in our own config file once and store it for use by our flows.
 @CordaService
-class ConfigHolder(@Suppress("UNUSED_PARAMETER") service: PluginServiceHub) : SingletonSerializeAsToken() {
+class ConfigHolder(@Suppress("UNUSED_PARAMETER") service: ServiceHub) : SingletonSerializeAsToken() {
     private val destDirs: Map<String, Path>
     init {
         // Look for a file called cordaftp.json in the current working directory (which is usually the node's base dir)
@@ -113,7 +114,7 @@ class ConfigHolder(@Suppress("UNUSED_PARAMETER") service: PluginServiceHub) : Si
 }
 
 @InitiatedBy(TxFileInitiator::class)
-class RxFileResponder(private val otherParty: Party) : FlowLogic<Unit>() {
+class RxFileResponder(private val otherSideSession: FlowSession) : FlowLogic<Unit>() {
     companion object {
         object RETRIEVING : ProgressTracker.Step("Retrieving")
         object UNPACKING : ProgressTracker.Step("Unpacking")
@@ -123,12 +124,12 @@ class RxFileResponder(private val otherParty: Party) : FlowLogic<Unit>() {
 
     @Suspendable
     override fun call() {
-        val st = this.receive<SignedTransaction>(otherParty).unwrap {
+        val st = otherSideSession.receive<SignedTransaction>().unwrap {
             it.checkSignaturesAreValid()
             it
         }
 
-        subFlow(ResolveTransactionsFlow(st, otherParty))
+        subFlow(ResolveTransactionsFlow(st, otherSideSession))
 
         val state = st.tx.outputs.single().data as FileTransferManifestState
 

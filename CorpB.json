@@ -3,22 +3,22 @@
     "environment": "dev"
   },
   "txMap": {
-    "outgoing_1_to_Node_A": {
+    "outgoing_1_to_Corp_A": {
       "searchDirectory": "build/send1",
       "searchPattern": ".*\\.txt|.*\\.doc",
       "logDirectory": "build/log",
-      "destinationParty": "NodeA",
+      "destinationParty": "CorpA",
       "myReference": "my_reference",
       "theirReference": "NodeA1",
       "postSendAction": "DELETE"
     },
-    "outgoing_2_to_Node_A": {
+    "outgoing_2_to_Corp_A": {
       "searchDirectory": "build/send2",
       "searchPattern": ".*\\.txt",
       "logDirectory": "build/log",
-      "destinationParty": "NodeA",
+      "destinationParty": "CorpA",
       "myReference": "my_reference",
-      "theirReference": "NodeA2"
+      "theirReference": "CorpA2"
     }
   },
   "rxMap": { }
