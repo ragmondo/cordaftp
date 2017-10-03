@@ -1,6 +1,6 @@
 buildscript {
-    ext.corda_release_version = '0.14.0'
-    ext.corda_gradle_plugins_version = '0.14.0'
+    ext.corda_release_version = '1.0.0'
+    ext.corda_gradle_plugins_version = '1.0.0'
     ext.kotlin_version = '1.1.2'
     ext.junit_version = '4.12'
     ext.quasar_version = '0.7.6'
@@ -25,6 +25,8 @@ repositories {
     mavenCentral()
     maven { url 'https://dl.bintray.com/kotlin/exposed' }
     maven { url 'https://jitpack.io' }
+    maven { url 'https://ci-artifactory.corda.r3cev.com/artifactory/corda-releases' }
+    maven { url 'https://ci-artifactory.corda.r3cev.com/artifactory/corda-dev/' }
 }
 
 apply plugin: 'kotlin'
@@ -63,6 +65,7 @@ dependencies {
     cordaRuntime "net.corda:corda-webserver:$corda_release_version"
 
     testCompile "net.corda:corda-test-utils:$corda_release_version"
+    testCompile "net.corda:corda-node-driver:$corda_release_version"
 
     // GraphStream: For visualisation (required by TemplateClientRPC app)
     compile "org.graphstream:gs-core:1.3"
