@@ -7,17 +7,14 @@ import net.corda.core.crypto.SecureHash
 import net.corda.core.flows.*
 import net.corda.core.identity.AbstractParty
 import net.corda.core.identity.Party
-import net.corda.core.internal.ResolveTransactionsFlow
 import net.corda.core.node.CordaPluginRegistry
 import net.corda.core.node.ServiceHub
 import net.corda.core.node.services.CordaService
 import net.corda.core.serialization.SerializationCustomization
 import net.corda.core.serialization.SingletonSerializeAsToken
 import net.corda.core.transactions.LedgerTransaction
-import net.corda.core.transactions.SignedTransaction
 import net.corda.core.transactions.TransactionBuilder
 import net.corda.core.utilities.ProgressTracker
-import net.corda.core.utilities.unwrap
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
@@ -29,13 +26,19 @@ import java.nio.file.Paths
 class FileTransferContract : Contract {
     override fun verify(tx: LedgerTransaction) {
         requireThat {
-            "No input states" using (tx.inputStates.isEmpty())
-            "One output state" using (tx.outputStates.size == 1)
+            "No input states (number of inputs is ${tx.inputStates.size})" using (tx.inputStates.isEmpty())
+            "One output state (actuals size ${tx.outputStates.size})" using (tx.outputStates.size == 1)
             "Output state is FileTransferManifestState" using (tx.outputStates.single() is FileTransferManifestState)
-            "Only one attachment" using (tx.attachments.size == 1)
+            "Only two attachments (one data, one contract) (actual size is ${tx.attachments.size})" using (tx.attachments.size == 2)
         }
     }
+
+    // This can go anywhere, but I've put it here for now.
+    companion object {
+        val FTCONTRACT = "net.corda.cordaftp.FileTransferContract"
+    }
 }
+
 
 /**
  * A basic manifest
@@ -46,6 +49,11 @@ data class FileTransferManifestState(val sender: Party,
                                      val senderReference: String,
                                      val recipientReference: String) : ContractState {
     override val participants: List<AbstractParty> get() = listOf(sender, recipient)
+
+
+    companion object {
+        open class FileTransferCommand : TypeOnlyCommandData()
+    }
 }
 
 /**
@@ -78,11 +86,14 @@ class TxFileInitiator(private val destinationParty: Party,
         ptx.addAttachment(attachment)
         val me = this.serviceHub.myInfo.legalIdentities.first()
         val outState = FileTransferManifestState(me, destinationParty, file, myReference, theirReference)
-        ptx.addOutputState(TransactionState(outState, "FileTransferContract", notary))
+        ptx.addOutputState(TransactionState(outState, FileTransferContract.FTCONTRACT, notary))
+        val cmd = FileTransferManifestState.Companion.FileTransferCommand()
+        ptx.addCommand(cmd, me.owningKey)
         val stx = serviceHub.signInitialTransaction(ptx)
+        stx.requiredSigningKeys
         progressTracker.currentStep = SENDING
         val flowSession = initiateFlow(destinationParty)
-        flowSession.send(stx)
+        subFlow(SendTransactionFlow(flowSession, stx))
         postSendAction?.doAction(file)
         //progressTracker.currentStep = POSTSEND
 
@@ -124,12 +135,8 @@ class RxFileResponder(private val otherSideSession: FlowSession) : FlowLogic<Uni
 
     @Suspendable
     override fun call() {
-        val st = otherSideSession.receive<SignedTransaction>().unwrap {
-            it.checkSignaturesAreValid()
-            it
-        }
 
-        subFlow(ResolveTransactionsFlow(st, otherSideSession))
+        val st = subFlow(ReceiveTransactionFlow(otherSideSession, true))
 
         val state = st.tx.outputs.single().data as FileTransferManifestState
 

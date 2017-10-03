@@ -9,7 +9,7 @@
       "logDirectory": "build/log",
       "destinationParty": "CorpA",
       "myReference": "my_reference",
-      "theirReference": "NodeA1",
+      "theirReference": "CorpA1",
       "postSendAction": "DELETE"
     },
     "outgoing_2_to_Corp_A": {

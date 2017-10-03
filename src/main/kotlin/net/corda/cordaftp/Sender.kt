@@ -13,7 +13,7 @@ val ARBITRARY_MAX_FILE_SIZE = 5_000_000
 
 fun main(args: Array<String>) {
     val proxy = loginToCordaNode(args)
-    val configName = "${proxy.nodeInfo().legalIdentities.first().name.commonName}.json"
+    val configName = "${proxy.nodeInfo().legalIdentities.first().name.organisation}.json"
     val config = FileConfigurationReader().readConfiguration(FileInputStream(configName))
     transferFilesForever(config, proxy)
 }

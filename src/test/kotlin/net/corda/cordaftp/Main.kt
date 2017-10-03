@@ -24,9 +24,9 @@ fun main(args: Array<String>) {
         startNode(providedName = CordaX500Name( "Controller", "London", "GB"), advertisedServices = setOf(ServiceInfo(SimpleNotaryService.type)))
 
         val nodeNames = listOf(
-                CordaX500Name( "BigCorporation1", "Paris","FR"),
-                CordaX500Name( "BigCorporation2", "Rome","IT"),
-                CordaX500Name( "BigCorporation3", "New York", "US"))
+                CordaX500Name( "CorpA", "Paris","FR"),
+                CordaX500Name( "CorpB", "Rome","IT"),
+                CordaX500Name( "CorpC", "New York", "US"))
 
         for (name in nodeNames) {
             // Copy the app config files in the project root directory to the relevant node base directories
