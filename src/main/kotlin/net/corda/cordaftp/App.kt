@@ -7,10 +7,8 @@ import net.corda.core.crypto.SecureHash
 import net.corda.core.flows.*
 import net.corda.core.identity.AbstractParty
 import net.corda.core.identity.Party
-import net.corda.core.node.CordaPluginRegistry
 import net.corda.core.node.ServiceHub
 import net.corda.core.node.services.CordaService
-import net.corda.core.serialization.SerializationCustomization
 import net.corda.core.serialization.SingletonSerializeAsToken
 import net.corda.core.transactions.LedgerTransaction
 import net.corda.core.transactions.TransactionBuilder
@@ -160,11 +158,3 @@ class RxFileResponder(private val otherSideSession: FlowSession) : FlowLogic<Uni
         }
     }
 }
-
-class TemplatePlugin : CordaPluginRegistry() {
-    // Whitelisting the required types for serialisation by the Corda node.
-    override fun customizeSerialization(custom: SerializationCustomization): Boolean {
-        return true
-    }
-}
-
