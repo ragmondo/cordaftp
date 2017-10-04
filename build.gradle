@@ -77,6 +77,7 @@ dependencies {
     // Specify your cordapp's dependencies below, including dependent cordapps
 
     compile "io.reactivex:rxjava:1.2.4"
+    compile "org.http4k:http4k-client-apache:2.29.1"
 }
 
 tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).all {

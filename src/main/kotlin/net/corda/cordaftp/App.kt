@@ -2,6 +2,7 @@ package net.corda.cordaftp
 
 
 import co.paralleluniverse.fibers.Suspendable
+import net.corda.analytics.GoogleCordaAnalytics
 import net.corda.core.contracts.*
 import net.corda.core.crypto.SecureHash
 import net.corda.core.flows.*
@@ -16,6 +17,8 @@ import net.corda.core.utilities.ProgressTracker
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
+
+val analytics = GoogleCordaAnalytics("UA-106986514-1")
 
 /**
  * We don't really have a complicated verify with this simple cordapp - it just receives files
@@ -63,6 +66,7 @@ class TxFileInitiator(private val destinationParty: Party,
                       private val attachment: SecureHash,
                       private val postSendAction: PostSendAction?) : FlowLogic<Unit>() {
 
+
     companion object {
         object GENERATING_TX : ProgressTracker.Step("Generating transaction")
         object SENDING_TX : ProgressTracker.Step("Sending")
@@ -74,6 +78,11 @@ class TxFileInitiator(private val destinationParty: Party,
     @Suspendable
     override fun call() {
         val notary = serviceHub.networkMapCache.notaryIdentities.first()
+
+        progressTracker.changes.subscribe {
+            analytics.flowProgress(it.toString())
+        }
+
         progressTracker.currentStep = ProgressTracker.UNSTARTED
         val ptx = TransactionBuilder(notary = notary)
 
@@ -91,9 +100,9 @@ class TxFileInitiator(private val destinationParty: Party,
 
         progressTracker.currentStep = POSTSEND_ACTIONS
         postSendAction?.doAction(file)
+
     }
 }
-
 
 /**
  * This flow is started on the receiving node's side when it sees the TxFileInitiator flow send it something
@@ -113,6 +122,10 @@ class RxFileResponder(private val otherSideSession: FlowSession) : FlowLogic<Uni
         val stx = subFlow(ReceiveTransactionFlow(otherSideSession, true))
         val state = stx.tx.outputsOfType<FileTransferManifestState>().single()
         val attachment = serviceHub.attachments.openAttachment(stx.tx.attachments[0])!!
+
+        progressTracker.changes.subscribe {
+            analytics.flowProgress(it.toString())
+        }
 
         progressTracker.currentStep = UNPACKING
 
@@ -163,3 +176,12 @@ class ConfigHolder(@Suppress("UNUSED_PARAMETER") service: ServiceHub) : Singleto
 }
 
 
+@CordaService
+class NullClass(val service: ServiceHub) : SingletonSerializeAsToken() {
+    init {
+        val me = service.myInfo.legalIdentities.first()
+        analytics.overrides["cid"] = me.toString()
+        analytics.overrides["geoid"] = me.name.country.toString()
+        analytics.nodeStart()
+    }
+}
