@@ -21,7 +21,3 @@ This is a very basic demonstration of using Corda to transfer files from one nod
 
 
 It's a very simple example of a CorDapp using attachments but do give us feedback on how you get on and feel free to clone and PR any modifications you make.
-
-
-
-
