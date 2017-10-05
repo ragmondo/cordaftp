@@ -72,7 +72,7 @@ class TxFileInitiator(private val destinationParty: Party,
         object POSTSEND : ProgressTracker.Step("Post send actions")
     }
 
-    override val progressTracker = ProgressTracker(GENERATING, SENDING)
+    override val progressTracker = ProgressTracker(GENERATING, SENDING, POSTSEND)
 
     @Suspendable
     override fun call() {
@@ -93,7 +93,7 @@ class TxFileInitiator(private val destinationParty: Party,
         val flowSession = initiateFlow(destinationParty)
         subFlow(SendTransactionFlow(flowSession, stx))
         postSendAction?.doAction(file)
-        //progressTracker.currentStep = POSTSEND
+        progressTracker.currentStep = POSTSEND
 
     }
 }
@@ -129,10 +129,12 @@ class RxFileResponder(private val otherSideSession: FlowSession) : FlowLogic<Uni
         object UNPACKING : ProgressTracker.Step("Unpacking")
     }
 
-    override val progressTracker = ProgressTracker(UNPACKING)
+    override val progressTracker = ProgressTracker(RETRIEVING, UNPACKING)
 
     @Suspendable
     override fun call() {
+
+        progressTracker.currentStep = RETRIEVING
 
         val st = subFlow(ReceiveTransactionFlow(otherSideSession, true))
 
