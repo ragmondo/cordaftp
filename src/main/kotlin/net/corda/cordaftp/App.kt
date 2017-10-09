@@ -20,14 +20,14 @@ import java.nio.file.Paths
 /**
  * We don't really have a complicated verify with this simple cordapp - it just receives files
  */
-@LegalProseReference(uri="/some/uri/docs.txt")
+@LegalProseReference(uri = "/some/uri/docs.txt")
 class FileTransferContract : Contract {
     override fun verify(tx: LedgerTransaction) {
         requireThat {
             "No input states (number of inputs is ${tx.inputStates.size})" using (tx.inputStates.isEmpty())
-            "One output state (actuals size ${tx.outputStates.size})" using (tx.outputStates.size == 1)
+            "One output state (number of outputs is ${tx.outputStates.size})" using (tx.outputStates.size == 1)
             "Output state is FileTransferManifestState" using (tx.outputStates.single() is FileTransferManifestState)
-            "Only two attachments (one data, one contract) (actual size is ${tx.attachments.size})" using (tx.attachments.size == 2)
+            "Only two attachments (one data-file, one contract) (actual size is ${tx.attachments.size})" using (tx.attachments.size == 2)
         }
     }
 
@@ -48,10 +48,7 @@ data class FileTransferManifestState(val sender: Party,
                                      val recipientReference: String) : ContractState {
     override val participants: List<AbstractParty> get() = listOf(sender, recipient)
 
-
-    companion object {
-        open class FileTransferCommand : TypeOnlyCommandData()
-    }
+    class FileTransferCommand : TypeOnlyCommandData()
 }
 
 /**
@@ -67,34 +64,33 @@ class TxFileInitiator(private val destinationParty: Party,
                       private val postSendAction: PostSendAction?) : FlowLogic<Unit>() {
 
     companion object {
-        object GENERATING : ProgressTracker.Step("Generating")
-        object SENDING : ProgressTracker.Step("Sending")
-        object POSTSEND : ProgressTracker.Step("Post send actions")
+        object GENERATING_TX : ProgressTracker.Step("Generating transaction")
+        object SENDING_TX : ProgressTracker.Step("Sending")
+        object POSTSEND_ACTIONS : ProgressTracker.Step("Post send actions")
     }
 
-    override val progressTracker = ProgressTracker(GENERATING, SENDING, POSTSEND)
+    override val progressTracker = ProgressTracker(GENERATING_TX, SENDING_TX, POSTSEND_ACTIONS)
 
     @Suspendable
     override fun call() {
         val notary = serviceHub.networkMapCache.notaryIdentities.first()
         progressTracker.currentStep = ProgressTracker.UNSTARTED
         val ptx = TransactionBuilder(notary = notary)
-        //val ptx = TransactionType.General.Builder(notary = serviceHub.networkMapCache.getAnyNotary())
-        progressTracker.currentStep = GENERATING
+
+        progressTracker.currentStep = GENERATING_TX
+        val outState = FileTransferManifestState(ourIdentity, destinationParty, file, myReference, theirReference)
+        val cmd = FileTransferManifestState.FileTransferCommand()
         ptx.addAttachment(attachment)
-        val me = this.serviceHub.myInfo.legalIdentities.first()
-        val outState = FileTransferManifestState(me, destinationParty, file, myReference, theirReference)
-        ptx.addOutputState(TransactionState(outState, FileTransferContract.FTCONTRACT, notary))
-        val cmd = FileTransferManifestState.Companion.FileTransferCommand()
-        ptx.addCommand(cmd, me.owningKey)
+                .addOutputState(outState, FileTransferContract.FTCONTRACT)
+                .addCommand(cmd, ourIdentity.owningKey)
         val stx = serviceHub.signInitialTransaction(ptx)
-        stx.requiredSigningKeys
-        progressTracker.currentStep = SENDING
+
+        progressTracker.currentStep = SENDING_TX
         val flowSession = initiateFlow(destinationParty)
         subFlow(SendTransactionFlow(flowSession, stx))
-        postSendAction?.doAction(file)
-        progressTracker.currentStep = POSTSEND
 
+        progressTracker.currentStep = POSTSEND_ACTIONS
+        postSendAction?.doAction(file)
     }
 }
 
@@ -131,22 +127,18 @@ class ConfigHolder(@Suppress("UNUSED_PARAMETER") service: ServiceHub) : Singleto
 @InitiatedBy(TxFileInitiator::class)
 class RxFileResponder(private val otherSideSession: FlowSession) : FlowLogic<Unit>() {
     companion object {
-        object RETRIEVING : ProgressTracker.Step("Retrieving")
+        object RECEIVING_TX : ProgressTracker.Step("Retrieving transaction.")
         object UNPACKING : ProgressTracker.Step("Unpacking")
     }
 
-    override val progressTracker = ProgressTracker(RETRIEVING, UNPACKING)
+    override val progressTracker = ProgressTracker(RECEIVING_TX, UNPACKING)
 
     @Suspendable
     override fun call() {
-
-        progressTracker.currentStep = RETRIEVING
-
-        val st = subFlow(ReceiveTransactionFlow(otherSideSession, true))
-
-        val state = st.tx.outputs.single().data as FileTransferManifestState
-
-        val attachment = serviceHub.attachments.openAttachment(st.tx.attachments[0])!!
+        progressTracker.currentStep = RECEIVING_TX
+        val stx = subFlow(ReceiveTransactionFlow(otherSideSession, true))
+        val state = stx.tx.outputsOfType<FileTransferManifestState>().single()
+        val attachment = serviceHub.attachments.openAttachment(stx.tx.attachments[0])!!
 
         progressTracker.currentStep = UNPACKING
 
@@ -167,5 +159,30 @@ class RxFileResponder(private val otherSideSession: FlowSession) : FlowLogic<Uni
                 }
             }
         }
+    }
+}
+
+// The platform currently doesn't provide CorDapps a way to access their own config, so we use the CordaService concept
+// to read in our own config file once and store it for use by our flows.
+@CordaService
+class ConfigHolder(@Suppress("UNUSED_PARAMETER") service: ServiceHub) : SingletonSerializeAsToken() {
+    private val destDirs: Map<String, Path>
+
+    init {
+        // Look for a file called cordaftp.json in the current working directory (which is usually the node's base dir).
+        val configFile = Paths.get("cordaftp.json")
+        destDirs = if (Files.exists(configFile)) {
+            FileConfigurationReader()
+                    .readConfiguration(Files.newInputStream(configFile))
+                    .rxMap
+                    .values
+                    .associateBy({ it.myReference }, { Files.createDirectories(Paths.get(it.destinationDirectory)) })
+        } else {
+            emptyMap()
+        }
+    }
+
+    fun getDestDir(reference: String): Path {
+        return destDirs[reference] ?: throw IllegalArgumentException("Unknown reference: $reference")
     }
 }

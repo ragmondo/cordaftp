@@ -29,6 +29,3 @@ When you are sending a file, the receiving process is unintelligent and will jus
 There is a .json configuration file that is read in by the application. This is split into two major parts "txMap" and "rxMap". The important thing to note is that the only thing that the configurations need to match on is the "reference", and that this matches up the sender with the receiver. In the example, CorpB is sending files to CorpA under two configurations; the only significant difference is that files sent under "CorpA1" reference are deleted from CorpB's filesystem once they have been successfully received by CorpA. The example configuration demonstrates how to include multiple source directories and match patterns in one configuration file (hence the two directories).
 
 There is an arbitrary file limit of 5MB (for now).
-
-
-
