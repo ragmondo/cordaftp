@@ -1,5 +1,6 @@
 package net.corda.cordaftp
 
+import com.fasterxml.jackson.core.JsonParser
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
 import net.corda.core.utilities.loggerFor
@@ -41,7 +42,7 @@ interface ConfigurationReader {
 }
 
 class FileConfigurationReader : ConfigurationReader {
-    override fun readConfiguration(input: InputStream): Configuration = jacksonObjectMapper().readValue(input)
+    override fun readConfiguration(input: InputStream): Configuration = jacksonObjectMapper().enable(JsonParser.Feature.ALLOW_COMMENTS).readValue(input)
 }
 
 class FakeConfigurationReader : ConfigurationReader {

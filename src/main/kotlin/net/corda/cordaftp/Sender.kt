@@ -23,7 +23,12 @@ fun loginToCordaNode(args: Array<String>): CordaRPCOps {
     val client = CordaRPCClient(nodeAddress)
     return client.start("user1", "test").proxy
 }
-
+/*
+ *
+ * As titled, this function loops forever (until interrupted), scanning the directories given by the txMap section
+ * in the config file and when there is a match, it runs the startFlow() function with details of that match
+ * We use the Java WatchService to take care of alerting us when a relevant file appears.
+ */
 fun transferFilesForever(config: Configuration, proxy: CordaRPCOps) {
     val keysConfigMap = mutableMapOf<WatchKey, Pair<String, TxConfiguration>>()
     val watcher = FileSystems.getDefault().newWatchService()
