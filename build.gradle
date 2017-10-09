@@ -90,29 +90,27 @@ tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).all {
 
 task deployNodes(type: net.corda.plugins.Cordform, dependsOn: ['jar']) {
     directory "./build/nodes"
-    networkMap "CN=Controller,O=R3,OU=corda,L=London,C=UK"
+    networkMap "O=R3Corp,OU=corda,L=London,C=GB"
     node {
-        name "CN=Controller,O=R3,OU=corda,L=London,C=UK"
+        name "O=R3Corp,OU=corda,L=London,C=GB"
         advertisedServices = ["corda.notary.validating"]
         p2pPort 10002
         rpcPort 10003
         cordapps = []
     }
     node {
-        name "CN=NodeA,O=NodeA,L=London,C=UK"
+        name "O=CorpA,L=Paris,C=FR"
         advertisedServices = []
         p2pPort 10005
         rpcPort 10006
-        webPort 10007
         cordapps = []
         rpcUsers = [[ user: "user1", "password": "test", "permissions": ["StartFlow.com.template.TxFileInitiator"]]]
     }
     node {
-        name "CN=NodeB,O=NodeB,L=New York,C=US"
+        name "O=CorpB,L=Rome,C=IT"
         advertisedServices = []
         p2pPort 10008
         rpcPort 10009
-        webPort 10010
         cordapps = []
         rpcUsers = [[ user: "user1", "password": "test", "permissions": ["StartFlow.com.template.TxFileInitiator"]]]
     }
