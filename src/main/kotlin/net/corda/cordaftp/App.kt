@@ -94,32 +94,6 @@ class TxFileInitiator(private val destinationParty: Party,
     }
 }
 
-/**
- * The platform currently doesn't provide CorDapps a way to access their own config, so we use the CordaService concept
- * to read in our own config file once and store it for use by our flows.
- */
-@CordaService
-class ConfigHolder(@Suppress("UNUSED_PARAMETER") service: ServiceHub) : SingletonSerializeAsToken() {
-    private val destDirs: Map<String, Path>
-    init {
-        // Look for a file called cordaftp.json in the current working directory (which is usually the node's base dir)
-        val configFile = Paths.get("cordaftp.json")
-        destDirs = if (Files.exists(configFile)) {
-            FileConfigurationReader()
-                    .readConfiguration(Files.newInputStream(configFile))
-                    .rxMap
-                    .values
-                    .associateBy({ it.myReference }, { Files.createDirectories(Paths.get(it.destinationDirectory)) })
-        } else {
-            emptyMap()
-        }
-    }
-
-    fun getDestDir(reference: String): Path {
-        return destDirs[reference] ?: throw IllegalArgumentException("Unknown reference: $reference")
-    }
-}
-
 
 /**
  * This flow is started on the receiving node's side when it sees the TxFileInitiator flow send it something
@@ -162,14 +136,15 @@ class RxFileResponder(private val otherSideSession: FlowSession) : FlowLogic<Uni
     }
 }
 
-// The platform currently doesn't provide CorDapps a way to access their own config, so we use the CordaService concept
-// to read in our own config file once and store it for use by our flows.
+/**
+ * The platform currently doesn't provide CorDapps a way to access their own config, so we use the CordaService concept
+ * to read in our own config file once and store it for use by our flows.
+ */
 @CordaService
 class ConfigHolder(@Suppress("UNUSED_PARAMETER") service: ServiceHub) : SingletonSerializeAsToken() {
     private val destDirs: Map<String, Path>
-
     init {
-        // Look for a file called cordaftp.json in the current working directory (which is usually the node's base dir).
+        // Look for a file called cordaftp.json in the current working directory (which is usually the node's base dir)
         val configFile = Paths.get("cordaftp.json")
         destDirs = if (Files.exists(configFile)) {
             FileConfigurationReader()
@@ -186,3 +161,5 @@ class ConfigHolder(@Suppress("UNUSED_PARAMETER") service: ServiceHub) : Singleto
         return destDirs[reference] ?: throw IllegalArgumentException("Unknown reference: $reference")
     }
 }
+
+
