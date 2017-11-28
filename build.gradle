@@ -114,6 +114,19 @@ task deployNodes(type: net.corda.plugins.Cordform, dependsOn: ['jar']) {
         cordapps = []
         rpcUsers = [[ user: "user1", "password": "test", "permissions": ["StartFlow.net.corda.cordaftp.TxFileInitiator"]]]
     }
+
+    project.copy {
+        from "CorpA.json"
+        into "$directory/CorpA/"
+        rename{ "cordaftp.json" }
+    }
+
+    project.copy {
+        from "CorpB.json"
+        into "$directory/CorpB/"
+        rename{ "cordaftp.json" }
+    }
+
 }
 
 idea {
