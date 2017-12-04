@@ -93,7 +93,8 @@ fun startFlow(proxy: CordaRPCOps, config: TxConfiguration, file: Path) {
     }
 
     val attachmentHash = proxy.uploadAttachment(fo.inputStream())
-    val otherParty = proxy.partiesFromName(config.destinationParty, false).first()
+    val otherParty = proxy.partiesFromName(config.destinationParty, false).firstOrNull()
+            ?: throw RuntimeException("Can't find destination party: ${config.destinationParty}")
 
     println("--> Destination party confirmed as $otherParty")
 
