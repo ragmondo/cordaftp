@@ -12,8 +12,8 @@ import java.util.zip.ZipOutputStream
 val ARBITRARY_MAX_FILE_SIZE = 5_000_000
 
 fun main(args: Array<String>) {
-    val proxy = loginToCordaNode(args.first(), args.get(1), args.get(2))
-    val configName = "${proxy.nodeInfo().legalIdentities.first().name.organisation}.json"
+    val proxy = loginToCordaNode(args.first(), args.getOrElse(1, { "corda" }), args.getOrElse(2, { "corda_default_password" }))
+    val configName = args.getOrElse(3, {"${proxy.nodeInfo().legalIdentities.first().name.organisation}.json"})
     val config = FileConfigurationReader().readConfiguration(FileInputStream(configName))
     transferFilesForever(config, proxy)
 }
@@ -29,10 +29,10 @@ fun loginToCordaNode(hostAndPort: String, username: String, password: String): C
  * in the config file and when there is a match, it runs the startFlow() function with details of that match
  * We use the Java WatchService to take care of alerting us when a relevant file appears.
  */
-fun transferFilesForever(config: Configuration, proxy: CordaRPCOps) {
+fun transferFilesForever(configuration: Configuration, proxy: CordaRPCOps) {
     val keysConfigMap = mutableMapOf<WatchKey, Pair<String, TxConfiguration>>()
     val watcher = FileSystems.getDefault().newWatchService()
-    for((key, value) in config.txMap) {
+    for((key, value) in configuration.txMap) {
         println("Configuration: $key")
         println(value.toString().replace(",","\n\t\t"))
         println()
@@ -45,10 +45,10 @@ fun transferFilesForever(config: Configuration, proxy: CordaRPCOps) {
     while (true) {
         println("In main loop and watching...")
         val key = watcher.take()
-        val (configName, config) = keysConfigMap[key]!!
-        val pattern =  config.searchPattern.toRegex()
+        val (configName, configInstance) = keysConfigMap[key]!!
+        val pattern =  configInstance.searchPattern.toRegex()
 
-        println("Potentially found something on Configuration: $configName - ${config.searchDirectory} for ${config.searchPattern} ")
+        println("Potentially found something on Configuration: $configName - ${configInstance.searchDirectory} for ${configInstance.searchPattern} ")
 
         val events = key.pollEvents()
         for (e in events) {
@@ -56,12 +56,12 @@ fun transferFilesForever(config: Configuration, proxy: CordaRPCOps) {
             if (pattern.containsMatchIn(filename)) {
                 println("Filename $filename matches pattern $pattern")
 
-                val file = Paths.get(config.searchDirectory, filename).toAbsolutePath()
+                val file = Paths.get(configInstance.searchDirectory, filename).toAbsolutePath()
                 if (Files.size(file) > ARBITRARY_MAX_FILE_SIZE) {
                     println("Filesize ${Files.size(file)} exceeds $ARBITRARY_MAX_FILE_SIZE. Ignoring")
                 }
                 else {
-                    startFlow(proxy, config, file)
+                    startFlow(proxy, configInstance, file)
                 }
             }
             else {

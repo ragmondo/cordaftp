@@ -156,9 +156,9 @@ publishing {
 }
 
 
-task(runClient, dependsOn: 'classes', type: JavaExec) {
+task(runClientB, dependsOn: 'classes', type: JavaExec) {
     classpath = sourceSets.main.runtimeClasspath
     main = 'net.corda.cordaftp.SenderKt'
-    args "localhost:$client_port", "$username", "$password"
+    args "localhost:$client_port", "$username", "$password", "build/nodes/CorpB/cordaftp.json"
 }
 
