@@ -93,8 +93,17 @@ tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).all {
     }
 }
 
-task deployNodes(type: net.corda.plugins.Cordform, dependsOn: ['jar']) {
+def copyConfigTask(nodeName) {
+    return tasks.create("copy${nodeName}", Copy) {
+        from "${nodeName}.json"
+        into "./build/nodes/${nodeName}/"
+        rename {
+            "cordaftp.json"
+        }
+    }
+}
 
+task deployNodes(type: net.corda.plugins.Cordform, dependsOn: ['jar', copyConfigTask("CorpA"), copyConfigTask("CorpB")]) {
     directory "./build/nodes"
     networkMap "O=R3Corp,OU=corda,L=London,C=GB"
     node {
@@ -121,18 +130,6 @@ task deployNodes(type: net.corda.plugins.Cordform, dependsOn: ['jar']) {
         cordapps = []
         // TODO: Ditto
         rpcUsers = [[ "user": "corda", "password": "corda_initial_password", "permissions": ["StartFlow.net.corda.cordaftp.TxFileInitiator"]]]
-    }
-
-    project.copy {
-        from "CorpA.json"
-        into "$directory/CorpA/"
-        rename{ "cordaftp.json" }
-    }
-
-    project.copy {
-        from "CorpB.json"
-        into "$directory/CorpB/"
-        rename{ "cordaftp.json" }
     }
 }
 
