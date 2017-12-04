@@ -19,7 +19,7 @@ import java.nio.file.Paths
  */
 fun main(args: Array<String>) {
     // No permissions required as we are not invoking flows.
-    val user = User("user1", "test", permissions = setOf("StartFlow.net.corda.cordaftp.TxFileInitiator"))
+    val user = User("corda", "corda_initial_password", permissions = setOf("StartFlow.net.corda.cordaftp.TxFileInitiator"))
     driver(isDebug = true) {
         startNode(providedName = CordaX500Name( "Controller", "London", "GB"), advertisedServices = setOf(ServiceInfo(SimpleNotaryService.type)))
 

@@ -5,6 +5,10 @@ buildscript {
     ext.junit_version = '4.12'
     ext.quasar_version = '0.7.6'
 
+    ext.username = "corda"
+    ext.password = "corda_initial_password"
+    ext.client_port = 10009
+
     repositories {
         mavenLocal()
         mavenCentral()
@@ -17,6 +21,7 @@ buildscript {
         classpath "net.corda.plugins:cordformation:$corda_gradle_plugins_version"
         classpath "net.corda.plugins:quasar-utils:$corda_gradle_plugins_version"
     }
+
 }
 
 repositories {
@@ -89,6 +94,7 @@ tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).all {
 }
 
 task deployNodes(type: net.corda.plugins.Cordform, dependsOn: ['jar']) {
+
     directory "./build/nodes"
     networkMap "O=R3Corp,OU=corda,L=London,C=GB"
     node {
@@ -104,7 +110,8 @@ task deployNodes(type: net.corda.plugins.Cordform, dependsOn: ['jar']) {
         p2pPort 10005
         rpcPort 10006
         cordapps = []
-        rpcUsers = [[ user: "user1", "password": "test", "permissions": ["StartFlow.net.corda.cordaftp.TxFileInitiator"]]]
+        // TODO: Replace username / password with vars such that we can DRY the username, password
+        rpcUsers = [[ "user": "corda", "password": "corda_initial_password", "permissions": ["StartFlow.net.corda.cordaftp.TxFileInitiator"]]]
     }
     node {
         name "O=CorpB,L=Rome,C=IT"
@@ -112,7 +119,8 @@ task deployNodes(type: net.corda.plugins.Cordform, dependsOn: ['jar']) {
         p2pPort 10008
         rpcPort 10009
         cordapps = []
-        rpcUsers = [[ user: "user1", "password": "test", "permissions": ["StartFlow.net.corda.cordaftp.TxFileInitiator"]]]
+        // TODO: Ditto
+        rpcUsers = [[ "user": "corda", "password": "corda_initial_password", "permissions": ["StartFlow.net.corda.cordaftp.TxFileInitiator"]]]
     }
 
     project.copy {
@@ -126,7 +134,6 @@ task deployNodes(type: net.corda.plugins.Cordform, dependsOn: ['jar']) {
         into "$directory/CorpB/"
         rename{ "cordaftp.json" }
     }
-
 }
 
 idea {
@@ -148,8 +155,10 @@ publishing {
     }
 }
 
-task runTemplateClient(type: JavaExec) {
+
+task(runClient, dependsOn: 'classes', type: JavaExec) {
     classpath = sourceSets.main.runtimeClasspath
-    main = 'com.template.ClientKt'
-    args 'localhost:10006'
+    main = 'net.corda.cordaftp.SenderKt'
+    args "localhost:$client_port", "$username", "$password"
 }
+

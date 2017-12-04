@@ -12,16 +12,16 @@ import java.util.zip.ZipOutputStream
 val ARBITRARY_MAX_FILE_SIZE = 5_000_000
 
 fun main(args: Array<String>) {
-    val proxy = loginToCordaNode(args)
+    val proxy = loginToCordaNode(args.first(), args.get(1), args.get(2))
     val configName = "${proxy.nodeInfo().legalIdentities.first().name.organisation}.json"
     val config = FileConfigurationReader().readConfiguration(FileInputStream(configName))
     transferFilesForever(config, proxy)
 }
 
-fun loginToCordaNode(args: Array<String>): CordaRPCOps {
-    val nodeAddress = NetworkHostAndPort.parse(args[0])
+fun loginToCordaNode(hostAndPort: String, username: String, password: String): CordaRPCOps {
+    val nodeAddress = NetworkHostAndPort.parse(hostAndPort)
     val client = CordaRPCClient(nodeAddress)
-    return client.start("user1", "test").proxy
+    return client.start(username, password).proxy
 }
 /*
  *
